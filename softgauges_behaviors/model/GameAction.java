@@ -162,7 +162,22 @@ public enum GameAction {
     ACTIVE_WITHOUT_CHATTING(
             BehaviorType.SILENT_PERIOD, BehaviorCategory.COMMUNICATION, BehaviorSeverity.NEUTRAL),
     IGNORED_NEARBY_HELP(
-            BehaviorType.IGNORED_HELP_REQUEST, BehaviorCategory.SOCIAL, BehaviorSeverity.NEGATIVE);
+            BehaviorType.IGNORED_HELP_REQUEST, BehaviorCategory.SOCIAL, BehaviorSeverity.NEGATIVE),
+            
+    // ── Economy & Resources ──────────────────────────────────────────────────
+    /**
+     * Emitted when a player leaves the server, summarizing the items they collected.
+     * meta: items (Map of Item Name -> Count)
+     */
+    SESSION_RESOURCE_SUMMARY(
+            BehaviorType.GATHERED_RESOURCES, BehaviorCategory.PROBLEM_SOLVING, BehaviorSeverity.NEUTRAL),
+            
+    /**
+     * Emitted when a player leaves the server, summarizing the items they discarded/dropped.
+     * meta: items (Map of Item Name -> Count)
+     */
+    SESSION_RESOURCE_DISCARDED_SUMMARY(
+            BehaviorType.DISCARDED_ITEM, BehaviorCategory.PROBLEM_SOLVING, BehaviorSeverity.NEUTRAL);
 
     // ── Fields ────────────────────────────────────────────────────────────────
 

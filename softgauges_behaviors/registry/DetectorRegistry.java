@@ -3,6 +3,7 @@ package org.softgauges_behaviors.registry;
 import org.softgauge.SoftGauge;
 import org.softgauges_behaviors.api.BehaviorDetector;
 import org.softgauges_behaviors.detector.activity.ActivityDetector;
+import org.softgauges_behaviors.detector.activity.ResourceGatheringDetector;
 import org.softgauges_behaviors.detector.aggression.ArrowHarassmentDetector;
 import org.softgauges_behaviors.detector.aggression.FriendlyKillDetector;
 import org.softgauges_behaviors.detector.altruism.ItemTossDetector;
@@ -80,6 +81,7 @@ public class DetectorRegistry {
 
         // ── 🏃 Activity & Session ─────────────────────────────────────────────
         register(new ActivityDetector(plugin));
+        register(new ResourceGatheringDetector(plugin));
 
         plugin.getLogger().info(
                 "DetectorRegistry: " + registered.size() + " detectors active.");
