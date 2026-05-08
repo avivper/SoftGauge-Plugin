@@ -151,8 +151,6 @@ public enum GameAction {
             BehaviorType.FOLLOWED_PLAYER, BehaviorCategory.LEADERSHIP, BehaviorSeverity.POSITIVE),
     BUILD_SELF_CORRECTED(
             BehaviorType.SELF_CORRECTED_BUILD, BehaviorCategory.PROBLEM_SOLVING, BehaviorSeverity.POSITIVE),
-    ENTERED_NEW_CHUNK(
-            BehaviorType.EXPLORED_NEW_AREA, BehaviorCategory.PROBLEM_SOLVING, BehaviorSeverity.POSITIVE),
     DIED_SAME_SPOT(
             BehaviorType.REPEATED_MISTAKE, BehaviorCategory.PROBLEM_SOLVING, BehaviorSeverity.NEGATIVE),
     DISCONNECTED_AFTER_DEATH(
@@ -170,14 +168,40 @@ public enum GameAction {
      * meta: items (Map of Item Name -> Count)
      */
     SESSION_RESOURCE_SUMMARY(
-            BehaviorType.GATHERED_RESOURCES, BehaviorCategory.PROBLEM_SOLVING, BehaviorSeverity.NEUTRAL),
+            BehaviorType.COLLECTED_ITEM, BehaviorCategory.PROBLEM_SOLVING, BehaviorSeverity.NEUTRAL),
             
     /**
      * Emitted when a player leaves the server, summarizing the items they discarded/dropped.
      * meta: items (Map of Item Name -> Count)
      */
     SESSION_RESOURCE_DISCARDED_SUMMARY(
-            BehaviorType.DISCARDED_ITEM, BehaviorCategory.PROBLEM_SOLVING, BehaviorSeverity.NEUTRAL);
+            BehaviorType.DISCARDED_ITEM, BehaviorCategory.PROBLEM_SOLVING, BehaviorSeverity.NEUTRAL),
+
+    /**
+     * Emitted when a player leaves the server, carrying their full chat transcript.
+     * meta:
+     *   chat_history (Map&lt;Long, String&gt;)  — epoch-ms → plain-text message, in order
+     *   message_count (int)                  — total number of messages sent this session
+     *   first_message_at (long, optional)    — epoch-ms of the first message (absent if none)
+     *   last_message_at  (long, optional)    — epoch-ms of the last message (absent if none)
+     */
+    SESSION_CHAT_SUMMARY(
+            BehaviorType.SESSION_CHAT_HISTORY, BehaviorCategory.COMMUNICATION, BehaviorSeverity.NEUTRAL),
+            
+    // ── Combat ───────────────────────────────────────────────────────────────
+    /**
+     * Player successfully defeats a hostile monster (Zombie, Skeleton, etc.)
+     * meta: mob_type, weapon_used
+     */
+    DEFEATED_MONSTER(
+            BehaviorType.DEFEATED_MONSTER, BehaviorCategory.PROBLEM_SOLVING, BehaviorSeverity.POSITIVE),
+            
+    /**
+     * Player kills a friendly villager.
+     * meta: villager_profession
+     */
+    KILLED_VILLAGER(
+            BehaviorType.KILLED_VILLAGER, BehaviorCategory.SOCIAL, BehaviorSeverity.NEGATIVE);
 
     // ── Fields ────────────────────────────────────────────────────────────────
 

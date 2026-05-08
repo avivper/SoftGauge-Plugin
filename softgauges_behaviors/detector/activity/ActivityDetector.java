@@ -26,7 +26,6 @@ import java.util.UUID;
  * Multi-action detector covering all non-chat, non-griefing in-game activities.
  *
  * Detected GameActions:
- *   ENTERED_NEW_CHUNK          — player enters a chunk they haven't visited this session
  *   BUILD_SELF_CORRECTED       — player breaks and re-places a block at the same spot within 30 s
  *   DIED_SAME_SPOT             — player dies within 20 blocks of their previous death within 5 min
  *   DISCONNECTED_AFTER_DEATH   — player quits within 10 s of dying (rage-quit signal)
@@ -34,12 +33,9 @@ import java.util.UUID;
  *   FOLLOWED_PLAYER_PROXIMITY  — player stays within 8 blocks of a moving player for ≥ 20 s
  *   ACTIVE_WITHOUT_CHATTING    — player has moved in the last 60 s but hasn't chatted in 5 min
  *
- * Primary action (informational only — this detector covers many): ENTERED_NEW_CHUNK.
+ * Primary action (informational only — this detector covers many): BUILD_SELF_CORRECTED.
  */
 public class ActivityDetector extends AbstractBehaviorDetector {
-
-    // ── ENTERED_NEW_CHUNK ─────────────────────────────────────────────────────
-    private final Map<UUID, Set<String>> visitedChunks = new HashMap<>();
 
     // ── BUILD_SELF_CORRECTED ──────────────────────────────────────────────────
     /** "playerUUID:world:x:y:z" → placement timestamp */
@@ -91,10 +87,10 @@ public class ActivityDetector extends AbstractBehaviorDetector {
 
     @Override
     public GameAction getAction() {
-        return GameAction.ENTERED_NEW_CHUNK; // representative; detector covers many actions
+        return GameAction.BUILD_SELF_CORRECTED; // representative; detector covers many actions
     }
 
-    // ── ENTERED_NEW_CHUNK ─────────────────────────────────────────────────────
+    // ── MOVEMENT TRACKING ─────────────────────────────────────────────────────
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onMove(PlayerMoveEvent event) {
@@ -105,25 +101,6 @@ public class ActivityDetector extends AbstractBehaviorDetector {
         lastMoveTime.put(player.getUniqueId(), now);
         lastLocations.put(player.getUniqueId(),
                 new LocationSnapshot(player.getLocation().clone(), now));
-
-        String chunkKey = player.getWorld().getName()
-                + ":" + player.getLocation().getChunk().getX()
-                + ":" + player.getLocation().getChunk().getZ();
-
-        boolean isNew = visitedChunks
-                .computeIfAbsent(player.getUniqueId(), k -> new HashSet<>())
-                .add(chunkKey);
-
-        if (isNew) {
-            emit(record(GameAction.ENTERED_NEW_CHUNK, player)
-                    .description(player.getName() + " entered a new area at chunk ("
-                            + player.getLocation().getChunk().getX()
-                            + ", " + player.getLocation().getChunk().getZ() + ")")
-                    .meta("chunk_x", player.getLocation().getChunk().getX())
-                    .meta("chunk_z", player.getLocation().getChunk().getZ())
-                    .meta("world",   player.getWorld().getName())
-                    .build());
-        }
     }
 
     // ── BUILD_SELF_CORRECTED ──────────────────────────────────────────────────
@@ -207,7 +184,6 @@ public class ActivityDetector extends AbstractBehaviorDetector {
         }
 
         // Clean up session state
-        visitedChunks.remove(player.getUniqueId());
         lastMoveTime.remove(player.getUniqueId());
         lastLocations.remove(player.getUniqueId());
         lastSilentFired.remove(player.getUniqueId());

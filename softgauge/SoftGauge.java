@@ -7,12 +7,18 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.softgauge_player.Player;
 import org.softgauge_roles.AssignRolesCommand;
+import org.softgauge_roles.MissionsCommand;
+import org.softgauge_roles.ResponCommand;
 import org.softgauge_roles.RoleManager;
 import org.softgauge_roles.RoleRegistry;
 import org.softgauges_behaviors.logging.BehaviorLogger;
+import org.softgauges_behaviors.logging.ChatLogger;
+import org.softgauges_behaviors.logging.ScoreExporter;
+import org.softgauges_behaviors.logging.ScoreExporterCommand;
 import org.softgauges_behaviors.model.BehaviorRecord;
 import org.softgauges_behaviors.model.GameAction;
 import org.softgauges_behaviors.registry.DetectorRegistry;
+import org.softgauges_behaviors.tracking.ChatHistoryTracker;
 import org.softgauges_behaviors.tracking.PlacementTracker;
 
 import java.util.HashMap;
@@ -34,6 +40,7 @@ import java.util.stream.Collectors;
 public class SoftGauge extends JavaPlugin implements Listener {
 
     private BehaviorLogger   behaviorLogger;
+    private ChatLogger       chatLogger;
     private PlacementTracker placementTracker;
     private RoleManager      roleManager;
 
@@ -43,10 +50,12 @@ public class SoftGauge extends JavaPlugin implements Listener {
     @Override
     public void onEnable() {
         behaviorLogger   = new BehaviorLogger(this);
+        chatLogger       = new ChatLogger(this);
         placementTracker = new PlacementTracker();
         roleManager      = new RoleManager();
 
         getServer().getPluginManager().registerEvents(placementTracker, this);
+        getServer().getPluginManager().registerEvents(new ChatHistoryTracker(this, chatLogger), this);
         getServer().getPluginManager().registerEvents(this, this);
 
         // Behavior detection subsystem
@@ -56,7 +65,18 @@ public class SoftGauge extends JavaPlugin implements Listener {
         new RoleRegistry(this, roleManager).registerAll();
 
         // Commands
-        getCommand("sg").setExecutor(new AssignRolesCommand(this));
+        if (getCommand("sg") != null) {
+            getCommand("sg").setExecutor(new AssignRolesCommand(this));
+        }
+        if (getCommand("respon") != null) {
+            getCommand("respon").setExecutor(new ResponCommand(this));
+        }
+        if (getCommand("missions") != null) {
+            getCommand("missions").setExecutor(new MissionsCommand(this));
+        }
+        if (getCommand("exportscores") != null) {
+            getCommand("exportscores").setExecutor(new ScoreExporterCommand(this));
+        }
 
         getLogger().info("SoftGauges behavior tracking enabled — " +
                 "output: plugins/SoftGaugesBehaviors/behaviors.log");
@@ -65,6 +85,13 @@ public class SoftGauge extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
         if (behaviorLogger != null) behaviorLogger.close();
+        if (chatLogger != null)     chatLogger.close();
+
+        // Auto-export scores to JSON on shutdown
+        getLogger().info("Auto-exporting behavior scores to player_scores.json...");
+        ScoreExporter exporter = new ScoreExporter(this);
+        exporter.runExport();
+
         getLogger().info("SoftGauges disabled.");
     }
 
@@ -82,13 +109,15 @@ public class SoftGauge extends JavaPlugin implements Listener {
         Player session = activeSessions.get(playerId);
         
         if (session != null) {
+            org.bukkit.entity.Player bukkitPlayer = e.getPlayer();
+            
             // Log gathered resources summary
             if (!session.getGatheredResources().isEmpty()) {
                 String itemsStr = session.getGatheredResources().entrySet().stream()
                         .map(entry -> entry.getValue() + "x " + entry.getKey())
                         .collect(Collectors.joining(", "));
                         
-                dispatch(BehaviorRecord.detect(GameAction.SESSION_RESOURCE_SUMMARY, session)
+                dispatch(BehaviorRecord.detect(GameAction.SESSION_RESOURCE_SUMMARY, bukkitPlayer)
                         .description(session.getPlayerName() + " collected items during session: " + itemsStr)
                         .meta("items", session.getGatheredResources())
                         .build());
@@ -99,14 +128,30 @@ public class SoftGauge extends JavaPlugin implements Listener {
                 String itemsStr = session.getDiscardedResources().entrySet().stream()
                         .map(entry -> entry.getValue() + "x " + entry.getKey())
                         .collect(Collectors.joining(", "));
-                        
-                dispatch(BehaviorRecord.detect(GameAction.SESSION_RESOURCE_DISCARDED_SUMMARY, session)
+
+                dispatch(BehaviorRecord.detect(GameAction.SESSION_RESOURCE_DISCARDED_SUMMARY, bukkitPlayer)
                         .description(session.getPlayerName() + " discarded items during session: " + itemsStr)
                         .meta("items", session.getDiscardedResources())
                         .build());
             }
+
+            // Log full chat transcript summary
+            Map<Long, String> chatHistory = session.getChatHistory();
+            if (!chatHistory.isEmpty()) {
+                long firstAt = chatHistory.keySet().stream().min(Long::compareTo).orElse(0L);
+                long lastAt  = chatHistory.keySet().stream().max(Long::compareTo).orElse(0L);
+
+                dispatch(BehaviorRecord.detect(GameAction.SESSION_CHAT_SUMMARY, bukkitPlayer)
+                        .description(session.getPlayerName() + " sent "
+                                + chatHistory.size() + " chat message(s) during session")
+                        .meta("chat_history",     chatHistory)
+                        .meta("message_count",    chatHistory.size())
+                        .meta("first_message_at", firstAt)
+                        .meta("last_message_at",  lastAt)
+                        .build());
+            }
         }
-        
+
         activeSessions.remove(playerId);
     }
 
@@ -144,6 +189,7 @@ public class SoftGauge extends JavaPlugin implements Listener {
     // ── Accessors ─────────────────────────────────────────────────────────────
 
     public PlacementTracker  getPlacementTracker() { return placementTracker; }
+    public ChatLogger        getChatLogger()       { return chatLogger; }
     public RoleManager       getRoleManager()      { return roleManager; }
     public Map<UUID, Player> getActiveSessions()   { return activeSessions; }
 }
